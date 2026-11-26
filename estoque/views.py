@@ -9,13 +9,22 @@ from django.contrib.auth.models import Group, User
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
-from django.db.models import F, Q
+from django.db.models import F, Prefetch, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-from .models import Event, Product, Profile, Receipt, Stock, Store, Transfer
+from .models import (
+    AccountChange,
+    Event,
+    Product,
+    Profile,
+    Receipt,
+    Stock,
+    Store,
+    Transfer,
+)
 
 ROLES = ("Vendedor", "Gerente", "Almoxarifado", "Transportadora")
 START = "Aguardando aprovação"
@@ -92,16 +101,17 @@ def visible(user, role):
     orders = Transfer.objects.select_related(
         "requester", "source", "destination__branch", "product"
     )
-    store = user.profile.store
+    stores = user.profile.linked_stores()
     if role == "Vendedor":
         return orders.filter(
-            Q(requester=user) | (Q(source=store) & ~Q(status__in=[START, REJECTED]))
+            Q(requester=user)
+            | (Q(source__in=stores) & ~Q(status__in=[START, REJECTED]))
         )
     if role == "Gerente":
-        return orders.filter(destination=store)
+        return orders.filter(destination__in=stores)
     if role == "Almoxarifado":
         orders = orders.exclude(status__in=[START, REJECTED])
-        return orders if user.is_superuser else orders.filter(source=store)
+        return orders if user.is_superuser else orders.filter(source__in=stores)
     return orders.filter(status__in=[SHIPPED, DELIVERED, DONE])
 
 
@@ -109,10 +119,23 @@ def visible(user, role):
 def panel(request, role):
     access(request.user, role)
     ctx = common(request.user, role)
+    if role == "Vendedor":
+        linked = list(request.user.profile.linked_stores())
+        selected_id = request.session.get("selling_store")
+        ctx["store"] = next((s for s in linked if s.pk == selected_id), ctx["store"])
+        ctx["linked_stores"] = linked
     orders = visible(request.user, role).order_by("-id")
     queue = request.GET.get("aba") == "pedidos" or role != "Vendedor"
     if queue:
-        ctx.update(orders=orders.prefetch_related("events__actor"), queue=True)
+        events = Event.objects.select_related("actor").order_by("created", "pk")
+        orders = orders.prefetch_related(Prefetch("events", queryset=events))
+        if role == "Almoxarifado":
+            for item in orders:
+                item.approval_event = next(
+                    (event for event in item.events.all() if event.status == APPROVED),
+                    None,
+                )
+        ctx.update(orders=orders, queue=True)
         return render(request, "queue.html", ctx)
     query = request.GET.get("q", "").strip()
     category = request.GET.get("categoria", "")
@@ -163,7 +186,9 @@ def order(request):
         return redirect("home")
     with transaction.atomic():
         stock = get_object_or_404(Stock, pk=stock_id)
-        dest = request.user.profile.store
+        # Use the store displayed on the submitted form, even across browser tabs.
+        dest_id = request.POST.get("selling_store", request.user.profile.store_id)
+        dest = assigned_store(request.user, dest_id)
         if stock.store_id == dest.id:
             raise PermissionDenied
         transfer, created = Transfer.objects.get_or_create(
@@ -299,7 +324,11 @@ def users(request):
             with transaction.atomic():
                 user = User.objects.create_user(email, email, password, first_name=name)
                 user.groups.set(Group.objects.filter(name__in=selected))
-                Profile.objects.create(user=user, store=store)
+                profile = Profile.objects.create(user=user, store=store)
+                profile.additional_stores.set(additional_ids(request, store))
+                AccountChange.objects.create(
+                    subject=user, actor=request.user, after=account_state(user)
+                )
             messages.success(request, "Usuário criado.")
             return redirect("users")
         except IntegrityError:
@@ -319,7 +348,7 @@ def users(request):
             ),
             accounts=User.objects.select_related(
                 "profile__store__branch"
-            ).prefetch_related("groups"),
+            ).prefetch_related("groups", "profile__additional_stores__branch"),
             admin_page=True,
         ),
     )
@@ -331,3 +360,105 @@ def dispatch_note(request, pk, role):
     item = get_object_or_404(visible(request.user, role).exclude(invoice=""), pk=pk)
     event = get_object_or_404(Event, transfer=item, status=SHIPPED)
     return render(request, "note.html", {"item": item, "event": event})
+
+
+@login_required
+@require_POST
+def selling_store(request):
+    access(request.user, "Vendedor")
+    selected = assigned_store(request.user, request.POST.get("store"))
+    request.session["selling_store"] = selected.pk
+    return redirect("panel", role="Vendedor")
+
+
+def assigned_store(user, value):
+    try:
+        store_id = int(value)
+    except (ValueError, TypeError):
+        raise PermissionDenied
+    return get_object_or_404(user.profile.linked_stores(), pk=store_id)
+
+
+def additional_ids(request, primary):
+    ids = {int(value) for value in request.POST.getlist("additional_stores")} - {
+        primary.pk
+    }
+    if Store.objects.filter(pk__in=ids).count() != len(ids):
+        raise ValueError
+    return ids
+
+
+def account_state(user):
+    profile = user.profile
+    return {
+        "nome": user.first_name,
+        "principal": f"{profile.store.branch.name} · Loja {profile.store.name}",
+        "lojas": [f"{s.branch.name} · Loja {s.name}" for s in profile.linked_stores()],
+        "perfis": roles(user),
+    }
+
+
+@login_required
+def account(request, pk):
+    if not request.user.is_superuser:
+        raise PermissionDenied
+    target = get_object_or_404(User, pk=pk)
+    if request.method == "POST":
+        try:
+            with transaction.atomic():
+                target = User.objects.select_for_update().get(pk=pk)
+                before = account_state(target)
+                name = request.POST.get("name", "").strip()
+                primary = Store.objects.get(pk=request.POST.get("store"))
+                extras = additional_ids(request, primary)
+                selected = set(request.POST.getlist("roles"))
+                if (
+                    not name
+                    or len(name) > 150
+                    or (
+                        not target.is_superuser
+                        and (not selected or not selected <= set(ROLES))
+                    )
+                ):
+                    raise ValueError
+                target.first_name = name
+                target.save(update_fields=["first_name"])
+                target.profile.store = primary
+                target.profile.save(update_fields=["store"])
+                target.profile.additional_stores.set(extras)
+                if not target.is_superuser:
+                    target.groups.set(Group.objects.filter(name__in=selected))
+                after = account_state(target)
+                if after != before:
+                    AccountChange.objects.create(
+                        actor=request.user, subject=target, before=before, after=after
+                    )
+            messages.success(request, "Cadastro salvo.")
+            return redirect("account", pk=pk)
+        except (ValueError, Store.DoesNotExist):
+            messages.error(
+                request,
+                "Confira o nome, a loja principal, as lojas adicionais e os perfis.",
+            )
+    return render(
+        request,
+        "account.html",
+        {
+            **common(request.user, ""),
+            "admin_page": True,
+            "account": target,
+            "state": account_state(target),
+            "stores_list": Store.objects.select_related("branch").order_by(
+                "branch__name", "name"
+            ),
+            "extras": list(
+                target.profile.additional_stores.values_list("pk", flat=True)
+            ),
+            "changes": target.account_changes.select_related("actor").order_by(
+                "-created", "-pk"
+            ),
+            "activity": Event.objects.filter(actor=target)
+            .select_related("transfer__product", "transfer__destination")
+            .order_by("-created", "-pk"),
+        },
+    )

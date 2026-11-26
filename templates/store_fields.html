@@ -1,0 +1,13 @@
+<label>Filial e loja principal
+    <select name="store" required>
+        <option value="" disabled {% if not account %}selected{% endif %}>Selecione a unidade</option>
+        {% for s in stores_list %}
+            <option value="{{ s.pk }}" {% if s.pk == account.profile.store_id %}selected{% endif %}>{{ s.branch.name }} · Loja {{ s.name }}</option>
+        {% endfor %}
+    </select>
+</label>
+<fieldset><legend>Lojas adicionais</legend>
+    {% for s in stores_list %}
+        <label><input type="checkbox" name="additional_stores" value="{{ s.pk }}" {% if s.pk in extras %}checked{% endif %}> {{ s.branch.name }} · Loja {{ s.name }}</label>
+    {% endfor %}
+</fieldset>

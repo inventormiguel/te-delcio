@@ -17,6 +17,34 @@ class Profile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     store = models.ForeignKey(Store, on_delete=models.PROTECT)
 
+    additional_stores = models.ManyToManyField(
+        Store, blank=True, related_name="additional_profiles"
+    )
+
+    def linked_stores(self):
+        return (
+            Store.objects.filter(
+                models.Q(pk=self.store_id) | models.Q(additional_profiles=self)
+            )
+            .select_related("branch")
+            .order_by("branch__name", "name")
+            .distinct()
+        )
+
+
+class AccountChange(models.Model):
+    subject = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="account_changes",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="account_edits"
+    )
+    created = models.DateTimeField(auto_now_add=True)
+    before = models.JSONField(default=dict)
+    after = models.JSONField()
+
 
 class Product(models.Model):
     sku = models.CharField(max_length=24, unique=True)

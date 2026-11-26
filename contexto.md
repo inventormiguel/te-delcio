@@ -8,18 +8,18 @@ Permitir que uma loja solicite a transferência de um produto de outra unidade q
 
 1. A vendedora da loja que atende o cliente busca o produto no sistema pelo código ou pelo nome.
 2. O sistema consulta o estoque das unidades e mostra a unidade mais próxima que tem o produto disponível.
-3. Ao solicitar a transferência, o sistema registra a pessoa autenticada como vendedora solicitante e a loja do seu cadastro como destino. O pedido aparece na fila dos usuários com perfil Gerente vinculados a essa mesma loja e filial. Basta que um deles aprove. O histórico identifica quem tomou a decisão.
+3. Ao solicitar a transferência, o sistema registra a pessoa autenticada como vendedora solicitante e a loja em atendimento, escolhida entre as unidades vinculadas ao seu cadastro, como destino. O pedido aparece na fila dos usuários com perfil Gerente vinculados a essa mesma loja e filial. Basta que um deles aprove. O histórico identifica quem tomou a decisão.
 4. Após a aprovação, o pedido chega à vendedora da unidade que tem o produto e ao almoxarifado dessa unidade.
 5. O almoxarifado emite a nota e encaminha o produto à transportadora.
 6. A transportadora entrega o produto na loja solicitante. A pessoa que fez o pedido recebe o produto e registra o recebimento com uma foto.
 
 ## Aplicação web e perfis
 
-O TE funciona pelo navegador, com identidade visual em tons de azul e logo próprio. No cadastro, a administração escolhe a combinação de filial e loja de cada usuário. Cada loja pertence a uma filial. A pessoa vê as áreas correspondentes aos seus perfis. A conta de testes de Miguel tem acesso às quatro visões e ao cadastro de usuários.
+O TE funciona pelo navegador, com identidade visual em tons de azul e logo próprio. No cadastro, a administração escolhe a loja principal e pode vincular lojas adicionais, identificadas pela filial. Miguel pode editar esses vínculos inclusive no próprio cadastro. A auditoria administrativa mostra o último login, os perfis, as lojas, as movimentações em pedidos e o histórico de alterações de cadastro, com responsável, data e valores anteriores e novos. Cada loja pertence a uma filial. A pessoa vê as áreas correspondentes aos seus perfis. A conta de testes de Miguel tem acesso às quatro visões e ao cadastro de usuários.
 
-- **Vendedor** busca por nome ou código, escolhe a unidade de origem e a quantidade, solicita a transferência e confirma o recebimento com foto.
+- **Vendedor** escolhe a loja em atendimento entre seus vínculos, busca por nome ou código, escolhe a unidade de origem e a quantidade, solicita a transferência e confirma o recebimento com foto.
 - **Gerente** analisa os pedidos da loja solicitante e aprova ou recusa. A aprovação libera o pedido para o almoxarifado da origem.
-- **Almoxarifado** registra a nota e encaminha a mercadoria à transportadora. O teste permite gerar um documento de expedição simulado.
+- **Almoxarifado** registra a nota e encaminha a mercadoria à transportadora. O card de Expedição mostra a data e a hora da solicitação e da aprovação, no horário de Brasília, e o gerente que aprovou. O teste permite gerar um documento de expedição simulado.
 - **Transportadora** consulta a fila de transporte e confirma a entrega. O recebimento com foto cabe à pessoa que solicitou a peça.
 
 ## Dados e hospedagem

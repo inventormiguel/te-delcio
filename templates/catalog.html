@@ -5,6 +5,16 @@
         <h1>Estoque da rede</h1>
         <p>Encontre uma peça nas lojas e solicite a transferência.</p>
     </div>
+    <section class="ticket">
+        <h2>Loja em atendimento</h2>
+        {% if linked_stores|length > 1 %}
+        <form class="actions" method="post" action="{% url 'selling_store' %}">{% csrf_token %}
+            <select name="store" aria-label="Loja em atendimento">{% for s in linked_stores %}<option value="{{ s.pk }}" {% if s.pk == store.pk %}selected{% endif %}>{{ s.branch.name }} · Loja {{ s.name }}</option>{% endfor %}</select>
+            <button class="outline">Usar esta loja</button>
+        </form>
+        {% else %}<p>{{ store.branch.name }} · Loja {{ store.name }}</p>{% endif %}
+        {% if user.is_superuser %}<a href="{% url 'account' user.pk %}#editar">Gerenciar minhas lojas</a>{% endif %}
+    </section>
     <div class="stats">
         <article><i data-icon="box"></i>
             <div><small>Produtos no catálogo</small><b>{{ total }}</b></div>
@@ -23,7 +33,7 @@
         <small>{{ products|length }} resultado{{ products|length|pluralize:"s" }}</small>
     </div>
     <div class="cards">{% for p in products %}<article class="product"><div class="picture"><span class="sku">{{ p.sku }}</span><img src="/static{{ p.image }}" alt="{{ p.name }}"></div><div class="details"><small>{{ p.category }} · {{ p.variant }}</small><h3>{{ p.name }}</h3>{% with first=p.options.0 %}{% if first %}<div class="nearest"><i data-icon="pin"></i><div><small>Loja mais próxima</small><strong>{{ first.store.name }} <em>· {{ first.km|floatformat:1 }} km</em></strong></div></div><button class="outline" data-open="p{{ p.pk }}">Solicitar transferência <span>→</span></button>{% else %}<p>Sem saldo nas outras lojas.</p>{% endif %}{% endwith %}</div></article>
-        {% if p.options %}<dialog id="p{{ p.pk }}"><div class="modalhead"><h2>Solicitar transferência</h2><button type="button" class="close" data-close aria-label="Fechar">×</button></div><p>{{ p.name }} · {{ p.variant }} · {{ p.sku }}</p><form method="post" action="{% url 'order' %}">{% csrf_token %}<input type="hidden" name="token" value="{{ p.token }}"><label>Loja de origem<select name="stock">{% for s in p.options %}<option value="{{ s.pk }}" data-max="{{ s.available }}">{{ s.store.name }} · {{ s.km|floatformat:1 }} km · {{ s.available }} disponíveis</option>{% endfor %}</select></label><label>Quantidade<input type="number"
+        {% if p.options %}<dialog id="p{{ p.pk }}"><div class="modalhead"><h2>Solicitar transferência</h2><button type="button" class="close" data-close aria-label="Fechar">×</button></div><p>{{ p.name }} · {{ p.variant }} · {{ p.sku }}</p><form method="post" action="{% url 'order' %}">{% csrf_token %}<input type="hidden" name="selling_store" value="{{ store.pk }}"><input type="hidden" name="token" value="{{ p.token }}"><label>Loja de origem<select name="stock">{% for s in p.options %}<option value="{{ s.pk }}" data-max="{{ s.available }}">{{ s.store.name }} · {{ s.km|floatformat:1 }} km · {{ s.available }} disponíveis</option>{% endfor %}</select></label><label>Quantidade<input type="number"
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                name="quantity"
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                min="1"
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                max="{{ p.options.0.available }}"

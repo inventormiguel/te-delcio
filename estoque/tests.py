@@ -3,6 +3,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from io import BytesIO
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 from django.contrib.auth.models import Group, User
@@ -153,6 +154,90 @@ class TransferTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(order.status, "Aprovada")
         self.assertEqual(order.events.get(status="Aprovada").actor, second)
+
+    def test_admin_edits_own_stores_and_audits_changes(self):
+        primary = self.admin.profile.store
+        extra = Store.objects.get(name="Moema")
+        path = f"/usuarios/{self.admin.pk}/"
+        data = {"name": "Miguel", "store": primary.pk, "additional_stores": [extra.pk]}
+        self.client.post(path, data)
+        self.client.post(path, data)
+        change = self.admin.account_changes.get()
+        self.assertEqual(change.actor, self.admin)
+        self.assertEqual(len(change.before["lojas"]), 1)
+        self.assertEqual(len(change.after["lojas"]), 2)
+        self.assertContains(self.client.get(path), "Alterações de cadastro")
+        self.client.post("/loja-em-atendimento/", {"store": extra.pk})
+        self.assertEqual(self.client.get("/visao/Vendedor/").context["store"], extra)
+        order_data = {
+            "selling_store": extra.pk,
+            "stock": self.stock.pk,
+            "quantity": 1,
+            "token": uuid.uuid4(),
+        }
+        self.client.post("/solicitar/", order_data)
+        item = Transfer.objects.get()
+        self.assertEqual(item.destination, extra)
+        self.assertIn(item, self.client.get("/visao/Gerente/").context["orders"])
+        self.client.post(path, {"store": primary.pk, "name": "Miguel"})
+        self.assertNotIn(item, self.client.get("/visao/Gerente/").context["orders"])
+        self.assertEqual(self.client.get("/visao/Vendedor/").context["store"], primary)
+        self.assertEqual(self.client.post("/solicitar/", order_data).status_code, 404)
+
+    def test_seller_association_is_managed_and_readable_by_admin(self):
+        primary = self.admin.profile.store
+        extra = Store.objects.get(name="Pinheiros")
+        payload = {
+            "name": "Joana",
+            "email": "joana@example.com",
+            "password": "test-secret",
+            "roles": ["Vendedor"],
+            "store": primary.pk,
+            "additional_stores": [extra.pk],
+        }
+        self.client.post("/usuarios/", payload)
+        seller = User.objects.get(username="joana@example.com")
+        self.assertEqual(seller.account_changes.get().after["perfis"], ["Vendedor"])
+        self.assertContains(self.client.get("/usuarios/"), "Auditar usuário")
+        self.client.force_login(seller)
+        path = f"/usuarios/{seller.pk}/"
+        self.assertEqual(self.client.get(path).status_code, 403)
+        self.assertEqual(self.client.post(path, payload).status_code, 403)
+        self.client.post("/loja-em-atendimento/", {"store": extra.pk})
+        self.assertEqual(self.client.get("/visao/Vendedor/").context["store"], extra)
+        self.assertEqual(
+            self.client.post(
+                "/loja-em-atendimento/", {"store": self.stock.store_id}
+            ).status_code,
+            404,
+        )
+
+    def test_dispatch_card_identifies_actual_approver_and_local_times(self):
+        item = self.order()
+        manager = User.objects.create_user(
+            "gerente@example.com", first_name="Ana", last_name="Lima"
+        )
+        Profile.objects.create(user=manager, store=item.destination)
+        manager.groups.add(Group.objects.get(name="Gerente"))
+        self.client.force_login(manager)
+        self.step(item, "aprovar")
+        Transfer.objects.filter(pk=item.pk).update(
+            created=datetime(2026, 11, 27, 1, 20, tzinfo=timezone.utc)
+        )
+        item.events.filter(status="Aprovada").update(
+            created=datetime(2026, 11, 27, 4, 10, tzinfo=timezone.utc)
+        )
+        self.client.force_login(self.admin)
+        self.step(item, "expedir", invoice="123")
+        html = self.client.get("/visao/Almoxarifado/").content.decode()
+        summary = html.split('class="dispatch-times"', 1)[1].split("<details>", 1)[0]
+        for value in (
+            "26/11/2026 às 22:20",
+            "27/11/2026 às 01:10",
+            "Ana Lima",
+            "Horário de Brasília",
+        ):
+            self.assertIn(value, summary)
 
     def test_search_and_nearest(self):
         for query in ("TE-1001", "camisa xadrez"):

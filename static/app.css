@@ -720,3 +720,16 @@ fieldset label {
     font-size: 11px;
   }
 }
+
+.dispatch-times {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 10px 20px;
+  margin: 14px 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #f1f6fc;
+}
+.dispatch-times small, .dispatch-times strong { display: block; }
+.dispatch-times strong { margin: 4px 0 0; }
+.dispatch-times .timezone { grid-column: 1 / -1; font-size: 11px; }
