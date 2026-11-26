@@ -31,3 +31,9 @@ A aplicação foi desenvolvida para hospedagem na Vercel com Django e PostgreSQL
 ## Manutenção do contexto
 
 Este arquivo é a referência para as tarefas e decisões do projeto. Consulte-o antes de executar uma tarefa e atualize-o sempre que uma mudança no fluxo ou nos requisitos for definida.
+
+## Integração com WhatsApp
+
+Em Administração → Integração com WhatsApp, Miguel conecta a conta de envio escaneando o QR code no celular. A aprovação do pedido gera um aviso para o vendedor solicitante, com a identificação do pedido, o produto, a quantidade e as lojas. Para endereçar a mensagem, o telefone precisa identificar o país com +. Avisos pendentes aguardam o pareamento ou a atualização do telefone. O painel distingue aceitação pelo OpenWA de uma tentativa com resultado incerto.
+
+O conector roda neste Mac e usa uma sessão OpenWA exclusiva do TE. Ele consulta a aplicação na Vercel por HTTPS. O Mac e o OpenWA precisam estar em funcionamento para atualizar o QR e processar a fila.

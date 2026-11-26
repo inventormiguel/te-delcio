@@ -38,3 +38,9 @@ As imagens ilustrativas de produtos são do catálogo DummyJSON. A fotografia de
 Ao reservar o estoque de um novo pedido, a mesma transação registra um aviso para cada gerente ativo da loja solicitante. A associação pode ser principal ou adicional. O primeiro envio ocorre após a confirmação da transação. A Vercel verifica pendências a cada cinco minutos. Antes de cada tentativa, o sistema confere a situação do pedido e o vínculo atual do destinatário. O identificador retornado pelo provedor registra a aceitação do e-mail para envio.
 
 Configure `TE_RESEND_KEY` com uma chave de envio e `TE_EMAIL_FROM` com um remetente do domínio verificado no Resend. A rota interna do agendamento exige `CRON_SECRET`. Cadastre os segredos no ambiente de produção da Vercel. Para testes locais, a suíte simula o provedor.
+
+## WhatsApp de aprovação
+
+O conector persistente em `scripts/openwa_bridge.py` atende a sessão `te-delcio` do OpenWA local (API 0.23.7 em 127.0.0.1:2785). Ele faz chamadas de saída à Vercel. A credencial do OpenWA é lida no host em `OPENWA_CREDENTIALS`. O token específico da ponte deve coincidir em `TE_WHATSAPP_BRIDGE_TOKEN` na Vercel e no arquivo privado `token` de `TE_BRIDGE_DIR`. O diretório também guarda o registro local da tentativa atual. Rode uma instância persistente da ponte por instalação. Neste Mac ela é gerenciada pelo LaunchAgent `com.inventormiguel.te-openwa`.
+
+Para conectar ou reconectar, abra Integração com WhatsApp como administrador e escaneie o QR pelo menu Aparelhos conectados. O painel mostra o estado dos últimos avisos. Um envio incerto precisa de conferência na conversa antes de qualquer reenvio manual.

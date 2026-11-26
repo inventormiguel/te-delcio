@@ -114,3 +114,20 @@ class ApprovalEmail(models.Model):
                 fields=["transfer", "recipient"], name="one_approval_email_per_manager"
             ),
         ]
+
+
+class WhatsAppConnection(models.Model):
+    # Single integration for this installation.
+    status = models.CharField(max_length=24, default="offline")
+    heartbeat = models.DateTimeField(null=True)
+    pairing_until = models.DateTimeField(null=True)
+    qr_image = models.TextField(blank=True)
+
+
+class ApprovalWhatsApp(models.Model):
+    transfer = models.OneToOneField(Transfer, on_delete=models.PROTECT)
+    created = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=16, default="pending", db_index=True)
+    claim = models.UUIDField(null=True, unique=True)
+    provider_id = models.CharField(max_length=255, blank=True)
+    updated = models.DateTimeField(auto_now=True)

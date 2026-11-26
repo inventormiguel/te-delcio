@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="heading"><h1>Integração com WhatsApp</h1><p>Conecte a conta que enviará os avisos de aprovação aos vendedores.</p></div>
+<section class="ticket" id="pairing" data-url="{% url 'whatsapp_pairing' %}">{% csrf_token %}
+    <h2>Conexão da conta</h2>
+    <p role="status" id="wa-status">Consultando o OpenWA…</p>
+    <img id="wa-qr" hidden width="260" height="260" alt="QR code para conectar a conta do TE ao WhatsApp" style="max-width:100%;height:auto;image-rendering:pixelated">
+    <p id="wa-guide" hidden>No WhatsApp do celular, abra <strong>Aparelhos conectados → Conectar um aparelho</strong> e escaneie o código.</p>
+</section>
+<section class="ticket"><h2>Avisos de aprovação</h2>
+{% for notice in notices %}<p><strong>TE-{{ notice.transfer_id|stringformat:"04d" }}</strong> · {{ notice.transfer.requester.get_full_name|default:notice.transfer.requester.username }} · {{ notice.label }}</p>
+{% empty %}<p>Os próximos pedidos aprovados aparecerão aqui.</p>{% endfor %}
+</section>
+<script defer src="/static/whatsapp.js"></script>
+{% endblock %}

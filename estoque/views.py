@@ -21,6 +21,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from .notifications import dispatch_pending, queue_approval_emails
 from .models import (
     AccountChange,
+    ApprovalWhatsApp,
     Event,
     Product,
     Profile,
@@ -285,6 +286,8 @@ def advance(request, pk, action):
         if image:
             Receipt.objects.create(transfer=item, image=image)
         Event.objects.create(transfer=item, actor=request.user, status=new)
+        if new == APPROVED:
+            ApprovalWhatsApp.objects.get_or_create(transfer=item)
         messages.success(request, f"TE-{pk:04d} · {new}")
     else:
         messages.error(request, "O pedido já mudou de etapa. Confira o histórico.")
