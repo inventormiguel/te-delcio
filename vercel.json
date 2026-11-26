@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/tarefas/avisos/", "schedule": "*/5 * * * *" }
+  ]
+}

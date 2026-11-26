@@ -96,3 +96,21 @@ class Event(models.Model):
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     status = models.CharField(max_length=30)
     created = models.DateTimeField(auto_now_add=True)
+
+
+class ApprovalEmail(models.Model):
+    transfer = models.ForeignKey(Transfer, on_delete=models.PROTECT)
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    accepted_at = models.DateTimeField(null=True)
+    cancelled_at = models.DateTimeField(null=True)
+    provider_id = models.CharField(max_length=100, blank=True)
+    attempts = models.PositiveIntegerField(default=0)
+    next_attempt = models.DateTimeField(db_index=True)
+    last_error = models.CharField(max_length=120, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["transfer", "recipient"], name="one_approval_email_per_manager"
+            ),
+        ]

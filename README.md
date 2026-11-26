@@ -32,3 +32,9 @@ A emissão fiscal oficial depende de integração com o emissor da loja. A exped
 `python manage.py test estoque` usa um banco temporário. Para PostgreSQL, a conta de teste precisa de permissão para criar esse banco. A suíte cobre transições, saldos, reenvio, foto, perfis e escopo de loja.
 
 As imagens ilustrativas de produtos são do catálogo DummyJSON. A fotografia de loja é do Unsplash. A tipografia é DM Sans.
+
+## Avisos por e-mail aos gerentes
+
+Ao reservar o estoque de um novo pedido, a mesma transação registra um aviso para cada gerente ativo da loja solicitante. A associação pode ser principal ou adicional. O primeiro envio ocorre após a confirmação da transação. A Vercel verifica pendências a cada cinco minutos. Antes de cada tentativa, o sistema confere a situação do pedido e o vínculo atual do destinatário. O identificador retornado pelo provedor registra a aceitação do e-mail para envio.
+
+Configure `TE_RESEND_KEY` com uma chave de envio e `TE_EMAIL_FROM` com um remetente do domínio verificado no Resend. A rota interna do agendamento exige `CRON_SECRET`. Cadastre os segredos no ambiente de produção da Vercel. Para testes locais, a suíte simula o provedor.

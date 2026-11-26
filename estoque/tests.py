@@ -13,7 +13,8 @@ from django.db import connections
 from django.test import Client, TestCase, TransactionTestCase, skipUnlessDBFeature
 from PIL import Image
 
-from .models import Event, Profile, Receipt, Stock, Store, Transfer
+from .notifications import dispatch_pending
+from .models import ApprovalEmail, Event, Profile, Receipt, Stock, Store, Transfer
 
 
 class TransferTests(TestCase):
@@ -267,6 +268,74 @@ class TransferTests(TestCase):
         self.client.post(path, {**data, "phone": ""})
         user.profile.refresh_from_db()
         self.assertEqual(user.profile.phone, "")
+
+    def test_approval_notices_follow_manager_assignments_and_retry(self):
+        store = self.admin.profile.store
+        other = self.stock.store
+        group = Group.objects.get(name="Gerente")
+        for name, primary, extra, active, manager in [
+            ("local", store, None, True, True),
+            ("extra", other, store, True, True),
+            ("fora", other, None, True, True),
+            ("inativo", store, None, False, True),
+            ("vendedor", store, None, True, False),
+        ]:
+            email = name + "@example.com"
+            u = User.objects.create_user(email, email, is_active=active)
+            profile = Profile.objects.create(user=u, store=primary)
+            if extra:
+                profile.additional_stores.add(extra)
+            if manager:
+                u.groups.add(group)
+        item = self.order()
+        notices = ApprovalEmail.objects.filter(transfer=item)
+        self.assertSetEqual(
+            set(notices.values_list("recipient__email", flat=True)),
+            {self.admin.email, "local@example.com", "extra@example.com"},
+        )
+        with (
+            patch.dict(
+                os.environ, TE_RESEND_KEY="fixture", TE_EMAIL_FROM="test@example.com"
+            ),
+            patch(
+                "estoque.notifications.send_approval_email",
+                side_effect=[OSError(), "id2", "id3", "id1"],
+            ) as send,
+        ):
+            self.assertEqual(dispatch_pending(), 2)
+            self.assertEqual(dispatch_pending(), 0)
+            notices.filter(accepted_at=None).update(
+                next_attempt=datetime(2020, 1, 1, tzinfo=timezone.utc)
+            )
+            self.assertEqual(dispatch_pending(), 1)
+            self.assertEqual(send.call_count, 4)
+        self.assertEqual(notices.filter(accepted_at__isnull=False).count(), 3)
+
+    def test_stale_notices_and_cron_permissions(self):
+        item = self.order()
+        self.step(item, "aprovar")
+        with (
+            patch.dict(
+                os.environ,
+                TE_RESEND_KEY="fixture",
+                TE_EMAIL_FROM="test@example.com",
+                CRON_SECRET="example",
+            ),
+            patch("estoque.notifications.send_approval_email") as send,
+        ):
+            self.assertEqual(self.client.get("/tarefas/avisos/").status_code, 403)
+            self.assertEqual(
+                self.client.get(
+                    "/tarefas/avisos/", HTTP_AUTHORIZATION="Bearer example"
+                ).json(),
+                {"accepted": 0},
+            )
+            self.assertFalse(send.called)
+            self.assertTrue(
+                ApprovalEmail.objects.filter(
+                    transfer=item, cancelled_at__isnull=False
+                ).exists()
+            )
 
     def test_search_and_nearest(self):
         for query in ("TE-1001", "camisa xadrez"):

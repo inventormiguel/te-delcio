@@ -1,3 +1,5 @@
+import os
+import secrets
 import math
 import re
 import uuid
@@ -11,11 +13,12 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
 from django.db.models import F, Prefetch, Q
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from .notifications import dispatch_pending, queue_approval_emails
 from .models import (
     AccountChange,
     Event,
@@ -216,6 +219,8 @@ def order(request):
                 )
                 return redirect("home")
             Event.objects.create(transfer=transfer, actor=request.user, status=START)
+            queue_approval_emails(transfer)
+            transaction.on_commit(lambda: dispatch_pending(transfer.pk), robust=True)
     messages.success(
         request,
         f"Pedido TE-{transfer.id:04d} encaminhado à gerência da Loja {transfer.destination.name}.",
@@ -489,3 +494,15 @@ def account(request, pk):
             .order_by("-created", "-pk"),
         },
     )
+
+
+@require_GET
+def retry_approval_emails(request):
+    key = os.environ.get("CRON_SECRET")
+    if not key or not secrets.compare_digest(
+        request.headers.get("Authorization", ""), f"Bearer {key}"
+    ):
+        raise PermissionDenied
+    response = JsonResponse({"accepted": dispatch_pending()})
+    response["Cache-Control"] = "no-store"
+    return response

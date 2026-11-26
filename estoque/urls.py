@@ -13,5 +13,6 @@ urlpatterns = [
     path("foto/<int:pk>/<str:role>/", views.photo, name="photo"),
     path("usuarios/<int:pk>/", views.account, name="account"),
     path("loja-em-atendimento/", views.selling_store, name="selling_store"),
+    path("tarefas/avisos/", views.retry_approval_emails),
     path("usuarios/", views.users, name="users"),
 ]
