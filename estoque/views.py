@@ -90,7 +90,7 @@ def distance(a, b):
 
 def visible(user, role):
     orders = Transfer.objects.select_related(
-        "requester", "source", "destination", "product"
+        "requester", "source", "destination__branch", "product"
     )
     store = user.profile.store
     if role == "Vendedor":
@@ -98,7 +98,7 @@ def visible(user, role):
             Q(requester=user) | (Q(source=store) & ~Q(status__in=[START, REJECTED]))
         )
     if role == "Gerente":
-        return orders if user.is_superuser else orders.filter(destination=store)
+        return orders.filter(destination=store)
     if role == "Almoxarifado":
         orders = orders.exclude(status__in=[START, REJECTED])
         return orders if user.is_superuser else orders.filter(source=store)
@@ -190,7 +190,10 @@ def order(request):
                 )
                 return redirect("home")
             Event.objects.create(transfer=transfer, actor=request.user, status=START)
-    messages.success(request, f"Pedido TE-{transfer.id:04d} enviado para aprovação.")
+    messages.success(
+        request,
+        f"Pedido TE-{transfer.id:04d} encaminhado à gerência da Loja {transfer.destination.name}.",
+    )
     return redirect("/visao/Vendedor/?aba=pedidos")
 
 
@@ -288,7 +291,11 @@ def users(request):
                 or not set(selected) <= set(ROLES)
             ):
                 raise ValueError
-            store = get_object_or_404(Store, pk=request.POST.get("store"))
+            try:
+                store = Store.objects.get(pk=request.POST.get("store"))
+            except (ValueError, Store.DoesNotExist):
+                messages.error(request, "Selecione a filial e a loja do usuário.")
+                return redirect("users")
             with transaction.atomic():
                 user = User.objects.create_user(email, email, password, first_name=name)
                 user.groups.set(Group.objects.filter(name__in=selected))
@@ -307,10 +314,12 @@ def users(request):
         "users.html",
         dict(
             common(request.user, ""),
-            stores_list=Store.objects.all(),
-            accounts=User.objects.select_related("profile__store").prefetch_related(
-                "groups"
+            stores_list=Store.objects.select_related("branch").order_by(
+                "branch__name", "name"
             ),
+            accounts=User.objects.select_related(
+                "profile__store__branch"
+            ).prefetch_related("groups"),
             admin_page=True,
         ),
     )

@@ -5,14 +5,14 @@ from threading import Barrier
 from io import BytesIO
 from unittest.mock import patch
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db import connections
 from django.test import Client, TestCase, TransactionTestCase, skipUnlessDBFeature
 from PIL import Image
 
-from .models import Event, Receipt, Stock, Store, Transfer
+from .models import Event, Profile, Receipt, Stock, Store, Transfer
 
 
 class TransferTests(TestCase):
@@ -107,6 +107,52 @@ class TransferTests(TestCase):
             self.assertIn(self.step(t, "aprovar").status_code, [403, 404])
         t.refresh_from_db()
         self.assertEqual(t.status, "Aguardando aprovação")
+
+    def test_requests_go_to_managers_of_the_sellers_store(self):
+        # The administrator manages Paulista. The seller and two managers work in Jardins.
+        store = self.stock.store
+
+        def member(name, role):
+            user = User.objects.create_user(name, first_name=name)
+            Profile.objects.create(user=user, store=store)
+            user.groups.add(Group.objects.get(name=role))
+            return user
+
+        seller = member("Ana", "Vendedor")
+        first = member("Bia", "Gerente")
+        second = member("Caio", "Gerente")
+        self.client.force_login(seller)
+        source_stock = Stock.objects.get(
+            store__name="Moema", product=self.stock.product
+        )
+        self.client.post(
+            "/solicitar/",
+            {
+                "stock": source_stock.pk,
+                "quantity": 1,
+                "token": uuid.uuid4(),
+                "requester": self.admin.pk,
+                "destination": self.admin.profile.store_id,
+            },
+        )
+        order = Transfer.objects.get()
+        self.assertEqual((order.requester, order.destination), (seller, store))
+        self.client.force_login(self.admin)
+        self.assertFalse(self.client.get("/visao/Gerente/").context["orders"].exists())
+        self.assertEqual(self.step(order, "aprovar").status_code, 404)
+        for manager in (first, second):
+            self.client.force_login(manager)
+            queue = self.client.get("/visao/Gerente/")
+            self.assertContains(queue, "Vendedor solicitante · Ana")
+            self.assertContains(
+                queue, "Unidade solicitante · Filial Jardins · Loja Jardins"
+            )
+        self.step(order, "aprovar")
+        self.client.force_login(first)
+        self.step(order, "recusar")
+        order.refresh_from_db()
+        self.assertEqual(order.status, "Aprovada")
+        self.assertEqual(order.events.get(status="Aprovada").actor, second)
 
     def test_search_and_nearest(self):
         for query in ("TE-1001", "camisa xadrez"):
