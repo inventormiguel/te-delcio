@@ -32,6 +32,8 @@ O cenário de demonstração usa cinco filiais fictícias em São Paulo, cada um
 
 Quando a gerência aprova o pedido, as peças reservadas passam a constar como **em transferência**. O catálogo do vendedor mostra a quantidade em transferência na rede e as entradas e saídas da loja em atendimento. Em Administração → Produtos → Estoque por loja, a origem mostra a saída para o destino, e o destino mostra a entrada prevista da origem. A indicação permanece durante a expedição, o transporte e a espera pela confirmação do vendedor. O recebimento com foto encerra a transferência e libera as peças para novos pedidos no destino.
 
+O código-fonte do TE é público no [GitHub](https://github.com/inventormiguel/te-delcio). Qualquer pessoa pode clonar o repositório ou baixar o ZIP sem login.
+
 A aplicação foi desenvolvida para hospedagem na Vercel com Django e PostgreSQL. A integração com um emissor fiscal e a conexão com estoques reais dependem dos sistemas que as lojas utilizarem.
 
 ## Manutenção do contexto
