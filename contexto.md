@@ -8,7 +8,7 @@ Permitir que uma loja solicite a transferência de um produto de outra unidade q
 
 1. A vendedora da loja que atende o cliente busca o produto no sistema pelo código ou pelo nome.
 2. O sistema consulta o estoque das unidades e mostra a unidade mais próxima que tem o produto disponível.
-3. Ao solicitar a transferência, o sistema registra a pessoa autenticada como vendedora solicitante e a loja em atendimento, escolhida entre as unidades vinculadas ao seu cadastro, como destino. O pedido aparece na fila dos usuários com perfil Gerente vinculados a essa mesma loja e filial. Ao criar o pedido, o TE prepara um e-mail individual para cada gerente ativo dessa unidade, com o pedido e o link de aprovação. Basta que um deles aprove. O histórico identifica quem tomou a decisão.
+3. Ao solicitar a transferência, o sistema registra a pessoa autenticada como vendedora solicitante e a loja em atendimento, escolhida entre as unidades vinculadas ao seu cadastro, como destino. O pedido aparece na fila dos usuários com perfil Gerente vinculados a essa mesma loja e filial. Ao criar o pedido, o TE envia pelo Resend, com o remetente `miguel@inventormiguel.com`, um e-mail individual para cada gerente ativo dessa unidade, com o pedido e o link de aprovação. Basta que um deles aprove. O histórico identifica quem tomou a decisão.
 4. Após a aprovação, o pedido chega à vendedora da unidade que tem o produto e ao almoxarifado dessa unidade.
 5. O almoxarifado emite a nota e encaminha o produto à transportadora.
 6. A transportadora entrega o produto na loja solicitante. A pessoa que fez o pedido recebe o produto e registra o recebimento com uma foto.
