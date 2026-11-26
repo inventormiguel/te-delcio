@@ -1,0 +1,6 @@
+<label>Telefone (opcional)
+    <input type="tel" name="phone" autocomplete="tel" maxlength="40"
+           value="{{ account.profile.phone|default:'' }}" placeholder="+55 (11) 99999-9999"
+           aria-describedby="phone-help">
+</label>
+<small id="phone-help">No Brasil, informe o DDD. Para outros países, inclua o código do país, como +351.</small>

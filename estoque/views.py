@@ -1,4 +1,5 @@
 import math
+import re
 import uuid
 from io import BytesIO
 
@@ -296,6 +297,24 @@ def photo(request, pk, role):
     return response
 
 
+def contact_phone(raw):
+    raw = raw.strip()
+    if not raw:
+        return ""
+    number = re.sub(r"[\s().-]", "", raw)
+    if number.startswith("00"):
+        number = "+" + number[2:]
+    elif re.fullmatch(r"[1-9][0-9]{9,10}", number):
+        number = "+55" + number
+    elif re.fullmatch(r"55[1-9][0-9]{9,10}", number):
+        number = "+" + number
+    if not re.fullmatch(r"\+[1-9][0-9]{6,14}", number):
+        raise ValidationError(
+            "Informe um telefone brasileiro com DDD ou um número internacional com + e o código do país."
+        )
+    return number
+
+
 @login_required
 def users(request):
     if not request.user.is_superuser:
@@ -307,6 +326,7 @@ def users(request):
         selected = request.POST.getlist("roles")
         try:
             validate_email(email)
+            phone = contact_phone(request.POST.get("phone", ""))
             if (
                 len(email) > 150
                 or not name
@@ -324,7 +344,7 @@ def users(request):
             with transaction.atomic():
                 user = User.objects.create_user(email, email, password, first_name=name)
                 user.groups.set(Group.objects.filter(name__in=selected))
-                profile = Profile.objects.create(user=user, store=store)
+                profile = Profile.objects.create(user=user, store=store, phone=phone)
                 profile.additional_stores.set(additional_ids(request, store))
                 AccountChange.objects.create(
                     subject=user, actor=request.user, after=account_state(user)
@@ -333,7 +353,9 @@ def users(request):
             return redirect("users")
         except IntegrityError:
             messages.error(request, "Esse e-mail já possui uma conta.")
-        except (ValueError, ValidationError):
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0])
+        except ValueError:
             messages.error(
                 request,
                 "Informe nome, e-mail, senha de pelo menos 8 caracteres e um perfil.",
@@ -392,6 +414,7 @@ def account_state(user):
     profile = user.profile
     return {
         "nome": user.first_name,
+        "telefone": profile.phone,
         "principal": f"{profile.store.branch.name} · Loja {profile.store.name}",
         "lojas": [f"{s.branch.name} · Loja {s.name}" for s in profile.linked_stores()],
         "perfis": roles(user),
@@ -408,6 +431,7 @@ def account(request, pk):
             with transaction.atomic():
                 target = User.objects.select_for_update().get(pk=pk)
                 before = account_state(target)
+                phone = contact_phone(request.POST.get("phone", target.profile.phone))
                 name = request.POST.get("name", "").strip()
                 primary = Store.objects.get(pk=request.POST.get("store"))
                 extras = additional_ids(request, primary)
@@ -424,7 +448,8 @@ def account(request, pk):
                 target.first_name = name
                 target.save(update_fields=["first_name"])
                 target.profile.store = primary
-                target.profile.save(update_fields=["store"])
+                target.profile.phone = phone
+                target.profile.save(update_fields=["store", "phone"])
                 target.profile.additional_stores.set(extras)
                 if not target.is_superuser:
                     target.groups.set(Group.objects.filter(name__in=selected))
@@ -435,6 +460,8 @@ def account(request, pk):
                     )
             messages.success(request, "Cadastro salvo.")
             return redirect("account", pk=pk)
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0])
         except (ValueError, Store.DoesNotExist):
             messages.error(
                 request,

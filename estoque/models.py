@@ -14,6 +14,7 @@ class Store(models.Model):
 
 
 class Profile(models.Model):
+    phone = models.CharField(max_length=16, blank=True, db_default="")
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     store = models.ForeignKey(Store, on_delete=models.PROTECT)
 

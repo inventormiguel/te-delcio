@@ -239,6 +239,35 @@ class TransferTests(TestCase):
         ):
             self.assertIn(value, summary)
 
+    def test_phone_creation_update_validation_and_removal(self):
+        store = self.admin.profile.store
+        data = {
+            "name": "Contato",
+            "email": "contato@example.com",
+            "roles": ["Vendedor"],
+            "store": store.pk,
+            "password": "test-secret",
+            "phone": "(11) 99999-1234",
+        }
+        self.client.post("/usuarios/", data)
+        user = User.objects.get(username=data["email"])
+        path = f"/usuarios/{user.pk}/"
+        self.assertEqual(user.profile.phone, "+5511999991234")
+        self.assertContains(self.client.get(path), 'value="+5511999991234"')
+        data["phone"] = "+351 912 345 678"
+        self.client.post(path, data)
+        log = user.account_changes.latest("pk")
+        self.assertEqual(log.before["telefone"], "+5511999991234")
+        self.assertEqual(log.after["telefone"], "+351912345678")
+        self.client.post(path, {**data, "phone": "texto"})
+        user.profile.refresh_from_db()
+        self.assertEqual(user.profile.phone, "+351912345678")
+        self.client.post(path, {k: v for k, v in data.items() if k != "phone"})
+        self.assertEqual(user.account_changes.count(), 2)
+        self.client.post(path, {**data, "phone": ""})
+        user.profile.refresh_from_db()
+        self.assertEqual(user.profile.phone, "")
+
     def test_search_and_nearest(self):
         for query in ("TE-1001", "camisa xadrez"):
             response = self.client.get("/visao/Vendedor/", {"q": query})

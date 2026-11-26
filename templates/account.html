@@ -2,9 +2,10 @@
 {% block content %}
 <a href="{% url 'users' %}">← Usuários</a>
 <div class="heading"><h1>{{ account.first_name }}</h1><p>{{ account.email }}{% if account.is_superuser %} · Administrador{% endif %}</p></div>
-<article class="ticket" id="editar"><h2>Editar lojas e perfis</h2>
+<article class="ticket" id="editar"><h2>Editar cadastro</h2>
 <form method="post">{% csrf_token %}
     <label>Nome<input name="name" maxlength="150" required value="{{ account.first_name }}"></label>
+    {% include "phone_field.html" %}
     {% include "store_fields.html" %}
     {% if account.is_superuser %}<p>O administrador tem acesso aos quatro perfis.</p>{% else %}
     <fieldset><legend>Perfis</legend>
@@ -18,8 +19,8 @@
 <h3>Alterações de cadastro</h3>
 {% for change in changes %}
 <details><summary>{{ change.created|date:"d/m/Y H:i:s" }} · {% if change.before %}Alteração{% else %}Criação{% endif %} por {{ change.actor.get_full_name|default:change.actor.username }}</summary>
-{% if change.before %}<p><b>Antes</b> · {{ change.before.nome }} · Principal: {{ change.before.principal }} · Lojas: {{ change.before.lojas|join:" / " }} · Perfis: {{ change.before.perfis|join:", " }}</p>{% endif %}
-<p><b>Depois</b> · {{ change.after.nome }} · Principal: {{ change.after.principal }} · Lojas: {{ change.after.lojas|join:" / " }} · Perfis: {{ change.after.perfis|join:", " }}</p>
+{% if change.before %}<p><b>Antes</b> · {{ change.before.nome }}{% if "telefone" in change.before %} · Telefone: {{ change.before.telefone|default:"não informado" }}{% endif %} · Principal: {{ change.before.principal }} · Lojas: {{ change.before.lojas|join:" / " }} · Perfis: {{ change.before.perfis|join:", " }}</p>{% endif %}
+<p><b>Depois</b> · {{ change.after.nome }}{% if "telefone" in change.after %} · Telefone: {{ change.after.telefone|default:"não informado" }}{% endif %} · Principal: {{ change.after.principal }} · Lojas: {{ change.after.lojas|join:" / " }} · Perfis: {{ change.after.perfis|join:", " }}</p>
 </details>{% empty %}<p>Nenhuma alteração registrada desde a ativação da auditoria.</p>{% endfor %}
 </article>
 <article class="ticket"><h2>Atividade nas transferências</h2>

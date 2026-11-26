@@ -9,6 +9,7 @@
     <form method="post">{% csrf_token %}
         <label>Nome<input name="name" required maxlength="150"></label>
         <label>E-mail<input name="email" type="email" required></label>
+        {% include "phone_field.html" %}
         <label>Senha inicial<input name="password" type="password" minlength="8" required autocomplete="new-password"></label>
         {% include "store_fields.html" %}
         <fieldset><legend>Perfis</legend>
@@ -21,9 +22,10 @@
 <article class="ticket">
     <h3>{{ u.first_name }}</h3>
     <p>{{ u.email }} · {{ u.profile.store.branch.name }} · Loja {{ u.profile.store.name }}</p>
+    {% if u.profile.phone %}<p>Telefone · {{ u.profile.phone }}</p>{% endif %}
     {% for s in u.profile.additional_stores.all %}<p>Loja adicional · {{ s.branch.name }} · {{ s.name }}</p>{% endfor %}
     {% for g in u.groups.all %}<span class="pill">{{ g.name }}</span>{% endfor %}
-    <p class="actions"><a href="{% url 'account' u.pk %}#editar">Editar lojas e perfis</a><a href="{% url 'account' u.pk %}#auditoria">Auditar usuário</a></p>
+    <p class="actions"><a href="{% url 'account' u.pk %}#editar">Editar cadastro</a><a href="{% url 'account' u.pk %}#auditoria">Auditar usuário</a></p>
 </article>
 {% endfor %}
 {% endblock %}
