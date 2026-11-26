@@ -1,0 +1,9 @@
+.venv/
+.vercel/
+.local/
+.env*
+__pycache__/
+*.pyc
+.collected/
+.DS_Store
+.ruff_cache/
