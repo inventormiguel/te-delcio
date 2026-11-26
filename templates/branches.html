@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% block content %}
+<div class="heading"><h1>Filiais</h1><p>Cadastre as filiais da rede e as lojas de cada unidade.</p></div>
+<button class="primary" data-open="nova-filial">Cadastrar filial</button>
+<dialog id="nova-filial"><div class="modalhead"><h2>Cadastrar filial</h2><button class="close" data-close aria-label="Fechar">×</button></div>
+<form method="post">{% csrf_token %}<input type="hidden" name="action" value="create"><label>Nome da filial<input name="name" maxlength="90" required></label><button class="primary">Salvar filial</button></form></dialog>
+{% for branch in branches %}
+<article class="ticket"><h2>{{ branch.name }}</h2>
+{% for s in branch.store_set.all %}<p>Loja {{ s.name }}</p>{% empty %}<p>Nenhuma loja vinculada.</p>{% endfor %}
+<div class="actions"><button class="outline" data-open="rename-{{ branch.pk }}">Editar nome</button><button class="outline" data-open="store-{{ branch.pk }}">Cadastrar loja</button></div>
+<dialog id="rename-{{ branch.pk }}"><div class="modalhead"><h2>Editar nome da filial</h2><button class="close" data-close aria-label="Fechar">×</button></div>
+<form method="post">{% csrf_token %}<input type="hidden" name="action" value="rename"><input type="hidden" name="branch" value="{{ branch.pk }}"><label>Nome da filial<input name="name" value="{{ branch.name }}" maxlength="90" required></label><button class="primary">Salvar nome</button></form></dialog>
+<dialog id="store-{{ branch.pk }}"><div class="modalhead"><h2>Cadastrar loja</h2><button class="close" data-close aria-label="Fechar">×</button></div><p>{{ branch.name }}</p>
+<form method="post">{% csrf_token %}<input type="hidden" name="action" value="store"><input type="hidden" name="branch" value="{{ branch.pk }}"><label>Nome da loja<input name="name" maxlength="90" required></label>
+<p>A localização permite encontrar a loja mais próxima com estoque.</p><label>Latitude<input name="lat" type="number" step="any" min="-90" max="90" required></label><label>Longitude<input name="lon" type="number" step="any" min="-180" max="180" required></label><button class="primary">Salvar loja</button></form></dialog>
+</article>{% endfor %}{% endblock %}

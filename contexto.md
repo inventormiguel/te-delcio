@@ -22,6 +22,10 @@ O TE funciona pelo navegador, com identidade visual em tons de azul e logo próp
 - **Almoxarifado** registra a nota e encaminha a mercadoria à transportadora. O card de Expedição mostra a data e a hora da solicitação e da aprovação, no horário de Brasília, e o gerente que aprovou. O teste permite gerar um documento de expedição simulado.
 - **Transportadora** consulta a fila de transporte e confirma a entrega. O recebimento com foto cabe à pessoa que solicitou a peça.
 
+## Administração
+
+O menu Área de Trabalho reúne Vendedor, Gerente, Almoxarifado e Transportadora. Em Administração, Miguel acessa Usuários, Filiais e Produtos. Em Filiais é possível cadastrar uma filial, editar seu nome e vincular lojas com localização. Em Produtos é possível cadastrar uma mercadoria, consultar ou alterar seu saldo disponível por loja e importar saldos por planilha Excel após revisar as alterações. A quantidade disponível representa as peças livres para novos pedidos. O atalho do WhatsApp fica em Integrações.
+
 ## Dados e hospedagem
 
 O cenário de demonstração usa cinco filiais fictícias em São Paulo, cada uma com uma loja, e um catálogo comum de 12 produtos com saldos por loja. A loja mais próxima é calculada pela distância em linha reta a partir da loja solicitante. O pedido reserva o saldo na origem, a recusa libera a reserva e o recebimento soma as peças ao saldo do destino.

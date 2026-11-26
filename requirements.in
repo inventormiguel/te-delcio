@@ -4,3 +4,6 @@ dj-database-url>=3,<4
 Pillow>=12,<13
 whitenoise>=6.9,<7
 django-axes>=8,<9
+
+openpyxl>=3.1.5,<4
+defusedxml>=0.7.1,<1

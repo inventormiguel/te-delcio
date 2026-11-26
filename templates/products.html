@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% block content %}
+<div class="heading"><h1>Produtos</h1><p>Cadastre mercadorias e atualize o estoque disponível em cada loja.</p></div>
+<div class="actions"><button class="primary" data-open="novo-produto">Cadastrar produto</button><button class="outline" data-open="importar">Importar estoque</button><a href="{% url 'stock_template' %}">Baixar planilha de estoque</a></div>
+<dialog id="novo-produto"><div class="modalhead"><h2>Cadastrar produto</h2><button class="close" data-close aria-label="Fechar">×</button></div>
+<form method="post">{% csrf_token %}<label>Código do produto<input name="sku" maxlength="24" required></label><label>Nome do produto<input name="name" maxlength="120" required></label><label>Categoria<input name="category" maxlength="40" required></label><label>Variação (cor ou tamanho)<input name="variant" maxlength="50"></label><button class="primary">Salvar produto</button></form></dialog>
+<dialog id="importar"><div class="modalhead"><h2>Importar estoque</h2><button class="close" data-close aria-label="Fechar">×</button></div>
+<p>Baixe a planilha atual, altere a coluna <strong>Saldo disponível</strong> e envie o arquivo para revisar. Use a quantidade livre para novos pedidos, já descontadas as reservas.</p>
+<p><a href="{% url 'stock_template' %}">Baixar modelo com os saldos atuais</a></p>
+<form method="post" enctype="multipart/form-data" action="{% url 'import_stock' %}">{% csrf_token %}<label>Planilha Excel (.xlsx, até 3 MB e 5.000 linhas)<input type="file" name="file" accept=".xlsx" required></label><button class="primary">Revisar importação</button></form></dialog>
+<div class="sectiontitle"><h2>Catálogo</h2></div>
+<form class="filters" method="get"><label class="search"><input name="q" value="{{ q }}" placeholder="Nome ou código do produto" aria-label="Buscar por nome ou código"></label><button class="outline">Buscar</button></form>
+<div class="tablebox"><table><thead><tr><th>Produto</th><th>Código</th><th>Categoria</th><th>Estoque</th></tr></thead><tbody>
+{% for p in items %}<tr><td><strong>{{ p.name }}</strong>{% if p.variant %}<small>{{ p.variant }}</small>{% endif %}</td><td>{{ p.sku }}</td><td>{{ p.category }}</td><td><a href="{% url 'product_stock' p.pk %}">Estoque por loja</a></td></tr>
+{% empty %}<tr><td colspan="4">Nenhum produto encontrado.</td></tr>{% endfor %}</tbody></table></div>{% endblock %}

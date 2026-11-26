@@ -733,3 +733,11 @@ fieldset label {
 .dispatch-times small, .dispatch-times strong { display: block; }
 .dispatch-times strong { margin: 4px 0 0; }
 .dispatch-times .timezone { grid-column: 1 / -1; font-size: 11px; }
+
+aside nav { overflow-y: auto; min-height: 0; }
+.tablebox { overflow-x: auto; margin: 18px 0; border: 1px solid var(--line); border-radius: 10px; background: white; }
+.tablebox table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+.tablebox td, .tablebox th { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.tablebox th { color: #36547c; background: #eaf1fc; }
+.tablebox td small { display: block; }
+.product-placeholder svg { width: 42px; height: 42px; color: #7699c7; }

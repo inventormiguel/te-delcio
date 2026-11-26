@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% block content %}
+<a href="{% url 'products' %}">← Produtos</a><div class="heading"><h1>Revisar importação</h1><p>{{ changes|length }} saldo{{ changes|length|pluralize:"s" }} com alteração.</p></div>
+<div class="tablebox"><table><thead><tr><th>Filial</th><th>Loja</th><th>Produto</th><th>Atual</th><th>Novo</th></tr></thead><tbody>
+{% for r in changes %}<tr><td>{{ r.branch }}</td><td>{{ r.store }}</td><td>{{ r.sku }}</td><td>{{ r.old }}</td><td><strong>{{ r.new }}</strong></td></tr>{% endfor %}
+</tbody></table></div>
+<form class="actions" method="post" action="{% url 'import_stock' %}">{% csrf_token %}<input type="hidden" name="step" value="confirm"><input type="hidden" name="token" value="{{ token }}"><button class="primary">Confirmar importação</button><a href="{% url 'products' %}">Voltar aos produtos</a></form>
+{% endblock %}
