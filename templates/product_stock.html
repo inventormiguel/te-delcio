@@ -1,5 +1,11 @@
 {% extends "base.html" %}{% block content %}
 <a href="{% url 'products' %}">← Produtos</a><div class="heading"><h1>{{ product.name }}</h1><p>{{ product.sku }} · {{ product.category }}{% if product.variant %} · {{ product.variant }}{% endif %}</p></div>
-<h2>Estoque por loja</h2><p>Informe a quantidade disponível para novos pedidos, já descontadas as reservas.</p>
-{% for row in stocks %}<article class="ticket"><h3>Loja {{ row.store.name }}</h3><p>{{ row.store.branch.name }}</p><form class="actions" method="post">{% csrf_token %}<input type="hidden" name="stock" value="{{ row.pk }}"><input type="hidden" name="previous" value="{{ row.available }}"><label>Saldo disponível<input type="number" min="0" max="2147483647" step="1" required name="available" value="{{ row.available }}"></label><button class="outline">Salvar saldo</button></form></article>
+<h2>Estoque por loja</h2><p>Informe a quantidade disponível para novos pedidos, já descontadas as reservas. Peças em transferência ficam disponíveis no destino após o recebimento com foto.</p>
+{% for row in stocks %}<article class="ticket"><h3>Loja {{ row.store.name }}</h3><p>{{ row.store.branch.name }}</p>
+{% if row.outgoing or row.incoming %}
+<div class="transfer-stock"><strong>Em transferência</strong>
+{% for route in row.outgoing %}<div>Saída para {{ route.destination__name }} · {{ route.units }} un.</div>{% endfor %}
+{% for route in row.incoming %}<div>Entrada de {{ route.source__name }} · {{ route.units }} un.</div>{% endfor %}
+</div>{% endif %}
+<form class="actions" method="post">{% csrf_token %}<input type="hidden" name="stock" value="{{ row.pk }}"><input type="hidden" name="previous" value="{{ row.available }}"><label>Saldo disponível<input type="number" min="0" max="2147483647" step="1" required name="available" value="{{ row.available }}"></label><button class="outline">Salvar saldo</button></form></article>
 {% empty %}<p>Cadastre uma loja em <a href="{% url 'branches' %}">Filiais</a> para informar o estoque.</p>{% endfor %}{% endblock %}

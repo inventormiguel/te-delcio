@@ -19,6 +19,8 @@ et-xmlfile==2.0.0
     # via openpyxl
 openpyxl==3.1.5
     # via -r requirements.in
+phonenumberslite==9.0.44
+    # via -r requirements.in
 pillow==12.3.0
     # via -r requirements.in
 psycopg==3.3.9

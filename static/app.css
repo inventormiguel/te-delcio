@@ -741,3 +741,5 @@ aside nav { overflow-y: auto; min-height: 0; }
 .tablebox th { color: #36547c; background: #eaf1fc; }
 .tablebox td small { display: block; }
 .product-placeholder svg { width: 42px; height: 42px; color: #7699c7; }
+
+.transfer-stock { margin: .5rem 0; padding: .45rem .7rem; border-left: 3px solid #356cba; background: #eef5ff; color: #234f88; font-size: .875rem; line-height: 1.5; }

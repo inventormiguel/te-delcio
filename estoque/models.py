@@ -47,7 +47,35 @@ class AccountChange(models.Model):
     after = models.JSONField()
 
 
+APPROVED = "Aprovada"
+SHIPPED = "Em transporte"
+DELIVERED = "Entregue"
+IN_TRANSFER = (APPROVED, SHIPPED, DELIVERED)
+
+
+class ProductQuerySet(models.QuerySet):
+    def with_transfer_quantities(self, store=None):
+        active = models.Q(transfer__status__in=IN_TRANSFER)
+        quantities = {
+            "in_transfer": models.Sum("transfer__quantity", filter=active, default=0)
+        }
+        if store is not None:
+            quantities["incoming"] = models.Sum(
+                "transfer__quantity",
+                filter=active & models.Q(transfer__destination=store),
+                default=0,
+            )
+            quantities["outgoing"] = models.Sum(
+                "transfer__quantity",
+                filter=active & models.Q(transfer__source=store),
+                default=0,
+            )
+        return self.annotate(**quantities)
+
+
 class Product(models.Model):
+    objects = ProductQuerySet.as_manager()
+
     sku = models.CharField(max_length=24, unique=True)
     name = models.CharField(max_length=120)
     category = models.CharField(max_length=40)
@@ -124,10 +152,20 @@ class WhatsAppConnection(models.Model):
     qr_image = models.TextField(blank=True)
 
 
-class ApprovalWhatsApp(models.Model):
-    transfer = models.OneToOneField(Transfer, on_delete=models.PROTECT)
+class WhatsAppNotice(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=16, default="pending", db_index=True)
     claim = models.UUIDField(null=True, unique=True)
     provider_id = models.CharField(max_length=255, blank=True)
     updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+
+class ApprovalWhatsApp(WhatsAppNotice):
+    transfer = models.OneToOneField(Transfer, on_delete=models.PROTECT)
+
+
+class ManagerWhatsApp(WhatsAppNotice):
+    email_notice = models.OneToOneField(ApprovalEmail, on_delete=models.PROTECT)

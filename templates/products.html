@@ -10,5 +10,5 @@
 <div class="sectiontitle"><h2>Catálogo</h2></div>
 <form class="filters" method="get"><label class="search"><input name="q" value="{{ q }}" placeholder="Nome ou código do produto" aria-label="Buscar por nome ou código"></label><button class="outline">Buscar</button></form>
 <div class="tablebox"><table><thead><tr><th>Produto</th><th>Código</th><th>Categoria</th><th>Estoque</th></tr></thead><tbody>
-{% for p in items %}<tr><td><strong>{{ p.name }}</strong>{% if p.variant %}<small>{{ p.variant }}</small>{% endif %}</td><td>{{ p.sku }}</td><td>{{ p.category }}</td><td><a href="{% url 'product_stock' p.pk %}">Estoque por loja</a></td></tr>
+{% for p in items %}<tr><td><strong>{{ p.name }}</strong>{% if p.variant %}<small>{{ p.variant }}</small>{% endif %}</td><td>{{ p.sku }}</td><td>{{ p.category }}</td><td><a href="{% url 'product_stock' p.pk %}">Estoque por loja</a>{% if p.in_transfer %}<div class="transfer-stock">Em transferência · {{ p.in_transfer }} un.</div>{% endif %}</td></tr>
 {% empty %}<tr><td colspan="4">Nenhum produto encontrado.</td></tr>{% endfor %}</tbody></table></div>{% endblock %}

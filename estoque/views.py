@@ -18,11 +18,15 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-from .notifications import dispatch_pending, queue_approval_emails
+from .notifications import dispatch_pending, queue_manager_notices
 from .models import (
+    APPROVED,
+    DELIVERED,
+    SHIPPED,
     AccountChange,
     ApprovalWhatsApp,
     Event,
+    ManagerWhatsApp,
     Product,
     Profile,
     Receipt,
@@ -33,9 +37,6 @@ from .models import (
 
 ROLES = ("Vendedor", "Gerente", "Almoxarifado", "Transportadora")
 START = "Aguardando aprovação"
-APPROVED = "Aprovada"
-SHIPPED = "Em transporte"
-DELIVERED = "Entregue"
 DONE = "Recebida"
 REJECTED = "Recusada"
 STEPS = {
@@ -157,6 +158,7 @@ def panel(request, role):
     ):
         row.km = distance(ctx["store"], row.store)
         balances.setdefault(row.product_id, []).append(row)
+    products = products.with_transfer_quantities(ctx["store"])
     for product in products:
         product.options = sorted(
             balances.get(product.id, []), key=lambda row: (row.km, row.store_id)
@@ -220,7 +222,7 @@ def order(request):
                 )
                 return redirect("home")
             Event.objects.create(transfer=transfer, actor=request.user, status=START)
-            queue_approval_emails(transfer)
+            queue_manager_notices(transfer)
             transaction.on_commit(lambda: dispatch_pending(transfer.pk), robust=True)
     messages.success(
         request,
@@ -286,6 +288,10 @@ def advance(request, pk, action):
         if image:
             Receipt.objects.create(transfer=item, image=image)
         Event.objects.create(transfer=item, actor=request.user, status=new)
+        if old == START:
+            ManagerWhatsApp.objects.filter(
+                email_notice__transfer=item, status="pending"
+            ).update(status="cancelled")
         if new == APPROVED:
             ApprovalWhatsApp.objects.get_or_create(transfer=item)
         messages.success(request, f"TE-{pk:04d} · {new}")

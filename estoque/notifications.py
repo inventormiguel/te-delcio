@@ -10,7 +10,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from .models import ApprovalEmail
+from .models import ApprovalEmail, ManagerWhatsApp
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ def managers_for(store_id):
     )
 
 
-def queue_approval_emails(order):
+def queue_manager_notices(order):
     now = timezone.now()
     ApprovalEmail.objects.bulk_create(
         [
@@ -37,12 +37,21 @@ def queue_approval_emails(order):
         ignore_conflicts=True,
     )
 
+    ManagerWhatsApp.objects.bulk_create(
+        [
+            ManagerWhatsApp(email_notice_id=pk)
+            for pk in ApprovalEmail.objects.filter(transfer=order).values_list(
+                "pk", flat=True
+            )
+        ],
+        ignore_conflicts=True,
+    )
 
-def send_approval_email(notice):
-    order = notice.transfer
+
+def manager_message(order):
     number = f"TE-{order.pk:04d}"
     shop = order.destination
-    text = (
+    return (
         f"O pedido {number} aguarda aprovação da gerência da Loja {shop.name} ({shop.branch.name}).\n\n"
         f"Solicitante: {order.requester.get_full_name() or order.requester.username}\n"
         f"Produto: {order.product.name} · {order.product.sku} · {order.product.variant}\n"
@@ -50,11 +59,15 @@ def send_approval_email(notice):
         f"Transferência: {order.source.name} → {shop.name}\n\n"
         "Entre no TE para revisar o pedido:\nhttps://te-delcio.vercel.app/visao/Gerente/"
     )
+
+
+def send_approval_email(notice):
+    order = notice.transfer
     payload = {
         "from": os.environ["TE_EMAIL_FROM"],
         "to": [notice.recipient.email],
-        "subject": f"{number} · Aprovação de transferência · Loja {shop.name}",
-        "text": text,
+        "subject": f"TE-{order.pk:04d} · Aprovação de transferência · Loja {order.destination.name}",
+        "text": manager_message(order),
     }
     req = Request(
         "https://api.resend.com/emails",

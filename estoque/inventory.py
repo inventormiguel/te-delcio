@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, connection, transaction
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -16,7 +16,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils.exceptions import InvalidFileException
 
-from .models import Branch, Product, Stock, Store
+from .models import IN_TRANSFER, Branch, Product, Stock, Store
 from .views import common
 
 HEADERS = ("Filial", "Loja", "Código do produto", "Saldo disponível")
@@ -144,7 +144,11 @@ def products(request):
     return render(
         request,
         "products.html",
-        dict(common(request.user, "Produtos"), items=items, q=q),
+        dict(
+            common(request.user, "Produtos"),
+            items=items.with_transfer_quantities(),
+            q=q,
+        ),
     )
 
 
@@ -183,16 +187,28 @@ def product_stock(request, pk):
         except ValueError:
             messages.error(request, "Informe uma quantidade inteira a partir de zero.")
         return redirect("product_stock", pk=pk)
+    stocks = list(
+        product.stock_set.select_related("store__branch").order_by(
+            "store__branch__name", "store__name"
+        )
+    )
+    by_store = {row.store_id: row for row in stocks}
+    for row in stocks:
+        row.incoming = []
+        row.outgoing = []
+    routes = (
+        product.transfer_set.filter(status__in=IN_TRANSFER)
+        .values("source_id", "destination_id", "source__name", "destination__name")
+        .annotate(units=Sum("quantity"))
+        .order_by("source__name", "destination__name")
+    )
+    for route in routes:
+        by_store[route["source_id"]].outgoing.append(route)
+        by_store[route["destination_id"]].incoming.append(route)
     return render(
         request,
         "product_stock.html",
-        dict(
-            common(request.user, "Produtos"),
-            product=product,
-            stocks=product.stock_set.select_related("store__branch").order_by(
-                "store__branch__name", "store__name"
-            ),
-        ),
+        dict(common(request.user, "Produtos"), product=product, stocks=stocks),
     )
 
 

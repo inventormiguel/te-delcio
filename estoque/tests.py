@@ -37,6 +37,16 @@ class TransferTests(TestCase):
     def step(self, t, action, **data):
         return self.client.post(f"/pedidos/{t.pk}/{action}/", data)
 
+    def assert_stock_movement(self, order, active):
+        detail = self.client.get(f"/produtos/{order.product_id}/estoque/")
+        catalog = self.client.get("/visao/Vendedor/", {"q": order.product.sku})
+        admin = self.client.get("/produtos/", {"q": order.product.sku})
+        check = self.assertContains if active else self.assertNotContains
+        check(detail, "Saída para Paulista · 1 un.")
+        check(detail, "Entrada de Jardins · 1 un.")
+        check(catalog, "A receber em Paulista · 1 un.")
+        check(admin, "Em transferência · 1 un.")
+
     def test_lifecycle_and_inventory(self):
         t = self.order()
         original = self.stock.available
@@ -45,16 +55,24 @@ class TransferTests(TestCase):
         self.assertEqual(
             self.client.get("/visao/Almoxarifado/").context["orders"].count(), 0
         )
+        self.assert_stock_movement(t, False)
         self.step(t, "entregar")
         self.step(t, "aprovar")
+        self.step(t, "aprovar")
+        self.assert_stock_movement(t, True)
+        self.stock.refresh_from_db()
+        self.assertEqual(self.stock.available, original - 1)
+
         self.step(t, "expedir")
         t.refresh_from_db()
         self.assertEqual(t.status, "Aprovada")
         self.step(t, "expedir", invoice="NF-123")
+        self.assert_stock_movement(t, True)
         self.step(t, "entregar")
         self.step(t, "receber")
         t.refresh_from_db()
         self.assertEqual(t.status, "Entregue")
+        self.assert_stock_movement(t, True)
         img = BytesIO()
         Image.new("RGB", (8, 8)).save(img, "JPEG")
         self.step(
@@ -66,6 +84,7 @@ class TransferTests(TestCase):
         )
         self.assertEqual(Event.objects.filter(transfer=t).count(), 5)
         self.assertTrue(Receipt.objects.filter(transfer=t).exists())
+        self.assert_stock_movement(t, False)
         self.assertEqual(
             Stock.objects.get(store=t.destination, product=t.product).available, 1
         )
