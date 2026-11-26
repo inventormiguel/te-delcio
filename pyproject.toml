@@ -1,2 +1,0 @@
-[tool.vercel]
-entrypoint = "estoque.wsgi:application"
