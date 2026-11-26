@@ -307,15 +307,12 @@ def contact_phone(raw):
     if not raw:
         return ""
     number = re.sub(r"[\s().-]", "", raw)
+    number = "".join(str(int(c)) if c.isdecimal() else c for c in number)
     if number.startswith("00"):
         number = "+" + number[2:]
-    elif re.fullmatch(r"[1-9][0-9]{9,10}", number):
-        number = "+55" + number
-    elif re.fullmatch(r"55[1-9][0-9]{9,10}", number):
-        number = "+" + number
-    if not re.fullmatch(r"\+[1-9][0-9]{6,14}", number):
+    if not re.fullmatch(r"(?:\+[1-9]\d{1,14}|\d{1,15})", number):
         raise ValidationError(
-            "Informe um telefone brasileiro com DDD ou um número internacional com + e o código do país."
+            "Informe o número em formato local ou com + e o código do país."
         )
     return number
 

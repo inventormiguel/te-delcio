@@ -240,6 +240,20 @@ class TransferTests(TestCase):
         ):
             self.assertIn(value, summary)
 
+    def test_phone_formats_across_countries(self):
+        from .views import contact_phone
+
+        for raw, expected in [
+            ("912 345 678", "912345678"),
+            ("020 7946 0958", "02079460958"),
+            ("(202) 555-0101", "2025550101"),
+            ("+55 (11) 99999-1234", "+5511999991234"),
+            ("00 81 90 1234 5678", "+819012345678"),
+            ("+٩٧١ ٥٠ ١٢٣ ٤٥٦٧", "+971501234567"),
+        ]:
+            with self.subTest(raw=raw):
+                self.assertEqual(contact_phone(raw), expected)
+
     def test_phone_creation_update_validation_and_removal(self):
         store = self.admin.profile.store
         data = {
@@ -253,12 +267,12 @@ class TransferTests(TestCase):
         self.client.post("/usuarios/", data)
         user = User.objects.get(username=data["email"])
         path = f"/usuarios/{user.pk}/"
-        self.assertEqual(user.profile.phone, "+5511999991234")
-        self.assertContains(self.client.get(path), 'value="+5511999991234"')
+        self.assertEqual(user.profile.phone, "11999991234")
+        self.assertContains(self.client.get(path), 'value="11999991234"')
         data["phone"] = "+351 912 345 678"
         self.client.post(path, data)
         log = user.account_changes.latest("pk")
-        self.assertEqual(log.before["telefone"], "+5511999991234")
+        self.assertEqual(log.before["telefone"], "11999991234")
         self.assertEqual(log.after["telefone"], "+351912345678")
         self.client.post(path, {**data, "phone": "texto"})
         user.profile.refresh_from_db()
